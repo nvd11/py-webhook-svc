@@ -1,0 +1,62 @@
+steps:
+  # Build the container image
+  - id: build docker image
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}",
+        "-f",
+        "Dockerfile",
+        ".",
+      ]
+
+  # Push the container image to Google Container Registry
+  - id: upload docker image to GAR
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}",
+      ]
+
+  
+
+
+
+  # deploy to gke
+  - id: 'Deploy to GKE'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+    - '-c'
+    - |
+      set -x
+      gcloud container clusters get-credentials ${_CLUSTER_NAME} --region ${_CLUSTER_LOCATION} --project $PROJECT_ID
+      kubectl get nodes
+      sed -i 's|image: .*|image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}|g' k8s/deployment.yaml
+      kubectl apply -f k8s/deployment.yaml                                
+      kubectl rollout status deployment/${_APP_NAME} --timeout=90s
+      kubectl get pods -l app=${_APP_NAME} -o wide
+      kubectl get svc
+      kubectl get ingress
+
+
+    env:
+      - "CLOUDSDK_COMPUTE_ZONE=${_CLUSTER_LOCATION}"
+      - "CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}"
+
+
+
+
+
+logsBucket: gs://jason-hsbc_cloudbuild/logs/
+options: # https://cloud.google.com/cloud-build/docs/build-config#options
+  logging: GCS_ONLY # or CLOUD_LOGGING_ONLY https://cloud.google.com/cloud-build/docs/build-config#logging
+
+substitutions:
+  _APP_NAME: py-webhook-svc
+  _APP_TAG: 0.0.31
+  _CLUSTER_NAME: my-cluster2
+  _CLUSTER_LOCATION: europe-west2 

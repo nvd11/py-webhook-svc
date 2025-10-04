@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: py-webhook-svc
+  labels:
+    app: py-webhook-svc
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: py-webhook-svc
+  template:
+    metadata:
+      labels:
+        app: py-webhook-svc
+    spec:
+      containers:
+        - name: py-webhook-svc
+          image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/py-webhook-svc:0.0.3
+          ports:
+            - containerPort: 8000
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterip-py-webhook-svc
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: py-webhook-svc # for the pods that have the label app: bq-api-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
