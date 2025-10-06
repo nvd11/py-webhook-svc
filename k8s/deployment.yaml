@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: py-webhook-svc
-          image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/py-webhook-svc:0.0.3
+          image: europe-west2-docker.pkg.dev/jason-hsbc/my-docker-repo/py-webhook-svc:0.0.3
           ports:
             - containerPort: 8000
           volumeMounts: # write log here
