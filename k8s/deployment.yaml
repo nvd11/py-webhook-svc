@@ -19,7 +19,41 @@ spec:
           image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/py-webhook-svc:0.0.3
           ports:
             - containerPort: 8000
+          volumeMounts: # write log here
+            - name: volume-log
+              mountPath: /app/logs/
+              readOnly: false # read only is set to false
 
+
+        - name: sidecar-fluentd
+          image: europe-west2-docker.pkg.dev/jason-hsbc/my-docker-repo/fluentd-bigquery:1.0.1
+          imagePullPolicy: Always
+          command: ["sh"]
+          args: 
+            - "-c"
+            - |
+              fluentd -c /app/config/fluentd.conf
+
+          volumeMounts: # read log from here
+            - name: volume-log
+              mountPath: /app/logs/
+              readOnly: false # fluentd needs to write .pos file
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true # read only is set to true
+
+
+
+
+      volumes:
+        - name: volume-log
+          emptyDir: {}
+        - name: config-volume
+          configMap:
+            name: configmap-fluentd-py-api-svc # name of the config map
+            items:
+              - key: fluent.conf # key of the config map item
+                path: fluentd.conf # name of the file, it will only contain the content of the key
 
 
 ---

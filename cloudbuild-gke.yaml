@@ -1,55 +1,71 @@
 steps:
+  # Calculate the next tag
+  - id: "Calculate New Tag"
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -e
+        LATEST_TAG=$$(gcloud artifacts docker tags list europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME} --format="value(TAG)" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+        if [ -z "$$LATEST_TAG" ]; then
+          NEW_TAG="0.0.1"
+        else
+          MAJOR=$$(echo $$LATEST_TAG | cut -d. -f1)
+          MINOR=$$(echo $$LATEST_TAG | cut -d. -f2)
+                            PATCH=$$(echo $$LATEST_TAG | cut -d. -f3)
+          NEW_PATCH=$$((PATCH + 1))
+          NEW_TAG="$$MAJOR.$$MINOR.$$NEW_PATCH"
+        fi
+        echo "New tag is: $$NEW_TAG"
+        echo $$NEW_TAG > /workspace/tag.txt
+
   # Build the container image
-  - id: build docker image
+  - id: "Build Docker Image"
     name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
     args:
-      [
-        "build",
-        "-t",
-        "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}",
-        "-f",
-        "Dockerfile",
-        ".",
-      ]
+      - "-c"
+      - |
+        set -e
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        docker build -t "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:$$NEW_TAG" -f Dockerfile .
+    waitFor: ["Calculate New Tag"]
 
-  # Push the container image to Google Container Registry
-  - id: upload docker image to GAR
+  # Push the container image to Google Artifact Registry
+  - id: "Push Docker Image to GAR"
     name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
     args:
-      [
-        "push",
-        "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}",
-      ]
+      - "-c"
+      - |
+        set -e
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        docker push "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:$$NEW_TAG"
+    waitFor: ["Build Docker Image"]
 
-  
-
-
-
-  # deploy to gke
-  - id: 'Deploy to GKE'
-    name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
+  # Deploy to GKE
+  - id: "Deploy to GKE"
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-    - '-c'
-    - |
-      set -x
-      gcloud container clusters get-credentials ${_CLUSTER_NAME} --region ${_CLUSTER_LOCATION} --project $PROJECT_ID
-      kubectl get nodes
-      sed -i 's|image: .*|image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:${_APP_TAG}|g' k8s/deployment.yaml
-      kubectl apply -f k8s/deployment.yaml                                
-      kubectl rollout status deployment/${_APP_NAME} --timeout=90s
-      kubectl get pods -l app=${_APP_NAME} -o wide
-      kubectl get svc
-      kubectl get ingress
-
-
+      - "-c"
+      - |
+        set -x
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        gcloud container clusters get-credentials ${_CLUSTER_NAME} --region ${_CLUSTER_LOCATION} --project $PROJECT_ID
+        kubectl get nodes
+        sed -i "s|image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:.*|image: europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:$$NEW_TAG|g" k8s/deployment.yaml
+        kubectl apply -f k8s/configmap-fluentd-py-webhook-svc.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl rollout status deployment/${_APP_NAME} --timeout=90s
+        kubectl get pods -l app=${_APP_NAME} -o wide
+        kubectl get svc
+        kubectl get ingress
+    waitFor: ["Push Docker Image to GAR"]
     env:
       - "CLOUDSDK_COMPUTE_ZONE=${_CLUSTER_LOCATION}"
       - "CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}"
-
-
-
-
 
 logsBucket: gs://jason-hsbc_cloudbuild/logs/
 options: # https://cloud.google.com/cloud-build/docs/build-config#options
@@ -57,6 +73,5 @@ options: # https://cloud.google.com/cloud-build/docs/build-config#options
 
 substitutions:
   _APP_NAME: py-webhook-svc
-  _APP_TAG: 0.0.31
   _CLUSTER_NAME: my-cluster2
-  _CLUSTER_LOCATION: europe-west2 
+  _CLUSTER_LOCATION: europe-west2
