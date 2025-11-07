@@ -13,10 +13,11 @@ print("project_path is {}".format(project_path))
 sys.path.append(project_path)
 
 
-# setup logs path
-logger.add(os.path.join(project_path, "logs", "app.log"))
+# setup logs to stdout
+logger.remove()
+logger.add(sys.stdout, level="DEBUG")
 
-logger.info("basic setup done")
+logger.info("loguru setup to stdout done")
 
 
 yaml_configs = None

@@ -10,10 +10,6 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "0.0.38"
 
-sidecar:
-  image: "europe-west2-docker.pkg.dev/jason-hsbc/my-docker-repo/fluentd-bigquery:1.0.1"
-  pullPolicy: Always
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
