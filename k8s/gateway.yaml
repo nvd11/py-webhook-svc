@@ -22,6 +22,8 @@ spec:
     - name: py-api-gateway
   hostnames:
     - "jpgcp.shop"
+    - "gateway.jpgcp.cloud"
+    
   rules:
     - matches:
       - path:
