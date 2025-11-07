@@ -1,0 +1,73 @@
+steps:
+  # Calculate the next tag
+  - id: "Calculate New Tag"
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -e
+        LATEST_TAG=$$(gcloud artifacts docker tags list europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME} --format="value(TAG)" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1)
+        if [ -z "$$LATEST_TAG" ]; then
+          NEW_TAG="0.0.1"
+        else
+          MAJOR=$$(echo $$LATEST_TAG | cut -d. -f1)
+          MINOR=$$(echo $$LATEST_TAG | cut -d. -f2)
+          PATCH=$$(echo $$LATEST_TAG | cut -d. -f3)
+          NEW_PATCH=$$((PATCH + 1))
+          NEW_TAG="$$MAJOR.$$MINOR.$$NEW_PATCH"
+        fi
+        echo "New tag is: $$NEW_TAG"
+        echo $$NEW_TAG > /workspace/tag.txt
+
+  # Build the container image
+  - id: "Build Docker Image"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -e
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        echo "--- Building Docker image with tag: $$NEW_TAG ---"
+        docker build --no-cache -t "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:$$NEW_TAG" -f Dockerfile .
+    waitFor: ["Calculate New Tag"]
+
+  # Push the container image to Google Artifact Registry
+  - id: "Push Docker Image to GAR"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -e
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        docker push "europe-west2-docker.pkg.dev/$PROJECT_ID/my-docker-repo/${_APP_NAME}:$$NEW_TAG"
+    waitFor: ["Build Docker Image"]
+
+  # Deploy to GKE using Helm
+  - id: "Deploy to GKE"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -ex
+        HELM_VERSION=v3.15.2
+        curl -sSL https://get.helm.sh/helm-$${HELM_VERSION}-linux-amd64.tar.gz -o helm-$${HELM_VERSION}-linux-amd64.tar.gz
+        tar -zxvf helm-$${HELM_VERSION}-linux-amd64.tar.gz
+        
+        NEW_TAG=$$(cat /workspace/tag.txt)
+        echo "--- Deploying to GKE with Helm, using image tag: $$NEW_TAG ---"
+        gcloud container clusters get-credentials ${_CLUSTER_NAME} --region ${_CLUSTER_LOCATION} --project $PROJECT_ID
+        ./linux-amd64/helm upgrade --install ${_APP_NAME} ./py-webhook-svc-chart --set image.tag=$$NEW_TAG --namespace default
+    waitFor: ["Push Docker Image to GAR"]
+
+logsBucket: gs://jason-hsbc_cloudbuild/logs/
+options:
+  logging: GCS_ONLY
+
+substitutions:
+  _APP_NAME: py-webhook-svc
+  _CLUSTER_NAME: my-cluster2
+  _CLUSTER_LOCATION: europe-west2

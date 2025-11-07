@@ -50,7 +50,7 @@ spec:
           emptyDir: {}
         - name: config-volume
           configMap:
-            name: configmap-fluentd-py-api-svc # name of the config map
+            name: configmap-fluentd-py-webhook-svc # name of the config map
             items:
               - key: fluent.conf # key of the config map item
                 path: fluentd.conf # name of the file, it will only contain the content of the key

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  labels:
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app: {{ .Values.service.appName }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- if .Chart.AppVersion }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.service.appName }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.appName }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: volume-log
+              mountPath: /app/logs/
+              readOnly: false
+        - name: sidecar-fluentd
+          image: "{{ .Values.sidecar.image }}"
+          imagePullPolicy: {{ .Values.sidecar.pullPolicy }}
+          command: ["sh"]
+          args:
+            - "-c"
+            - |
+              fluentd -c /app/config/fluentd.conf
+          volumeMounts:
+            - name: volume-log
+              mountPath: /app/logs/
+              readOnly: false
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: volume-log
+          emptyDir: {}
+        - name: config-volume
+          configMap:
+            name: configmap-fluentd-{{ .Values.service.appName }}
+            items:
+              - key: fluent.conf
+                path: fluentd.conf
