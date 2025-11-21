@@ -66,7 +66,7 @@ steps:
 logsBucket: gs://jason-hsbc_cloudbuild/logs/
 options:
   logging: GCS_ONLY
-
+serviceAccount: "projects/jason-hsbc/serviceAccounts/terraform@jason-hsbc.iam.gserviceaccount.com"
 substitutions:
   _APP_NAME: py-webhook-svc
   _CLUSTER_NAME: my-cluster2

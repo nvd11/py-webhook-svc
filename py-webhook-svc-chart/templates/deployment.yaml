@@ -26,6 +26,9 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: APP_ENVIRONMENT
+              value: "{{ .Values.appEnvironment }}"
           ports:
             - containerPort: {{ .Values.service.port }}
           volumeMounts: []
