@@ -10,7 +10,7 @@ app = FastAPI(root_path="/webhook")
 @app.get("/")
 def read_root():
     logger.debug("Root endpoint accessed!")
-    return {"message": "Hello, webhook service from Helm Chart!"}
+    return {"message": "Hello, webhook service from Helm Chart2!"}
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str = None):

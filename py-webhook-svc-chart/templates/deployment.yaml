@@ -26,33 +26,10 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: APP_ENVIRONMENT
+              value: "{{ .Values.appEnvironment }}"
           ports:
             - containerPort: {{ .Values.service.port }}
-          volumeMounts:
-            - name: volume-log
-              mountPath: /app/logs/
-              readOnly: false
-        - name: sidecar-fluentd
-          image: "{{ .Values.sidecar.image }}"
-          imagePullPolicy: {{ .Values.sidecar.pullPolicy }}
-          command: ["sh"]
-          args:
-            - "-c"
-            - |
-              fluentd -c /app/config/fluentd.conf
-          volumeMounts:
-            - name: volume-log
-              mountPath: /app/logs/
-              readOnly: false
-            - name: config-volume
-              mountPath: /app/config
-              readOnly: true
-      volumes:
-        - name: volume-log
-          emptyDir: {}
-        - name: config-volume
-          configMap:
-            name: configmap-fluentd-{{ .Values.service.appName }}
-            items:
-              - key: fluent.conf
-                path: fluentd.conf
+          volumeMounts: []
+      volumes: []
