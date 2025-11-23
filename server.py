@@ -2,7 +2,7 @@ import os
 
 import aiohttp
 from gidgethub.aiohttp import GitHubAPI
-from services.gh_service import GithubService
+from src.services.gh_service import GithubService
 import src.configs.config
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Response
