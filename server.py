@@ -1,12 +1,19 @@
+import os
+
+import aiohttp
+from gidgethub.aiohttp import GitHubAPI
+from services.gh_service import GithubService
 import src.configs.config
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from loguru import logger
+from gidgethub import routing, sansio
 
 app = FastAPI(root_path="/webhook")
+router = routing.Router()
 
-
+gh_token = os.getenv("GITHUB_TOKEN")
 @app.get("/")
 def read_root():
     logger.debug("Root endpoint accessed!")
@@ -66,6 +73,97 @@ async def webhook_test(request: Request, background_tasks: BackgroundTasks, resp
     
     response.status_code = 202
     return {"status": "Accepted"}
+
+
+
+# 注册事件处理器：监听 Issue Comment 的创建事件
+@router.register("issue_comment", action="created")
+async def issue_comment_event(event, gh, *args, **kwargs):
+    """
+    当 issue_comment 被创建时触发
+    event: 包含 webhook 数据的对象
+    gh: GitHubAPI 客户端实例
+    """
+    url = event.data["issue"]["comments_url"]
+    author = event.data["comment"]["user"]["login"]
+    
+    message = f"Hello @{author}, thanks for the comment!"
+    
+    # 调用 GitHub API 回复评论
+    await gh.post(url, data={"body": message})
+    print(f"Replied to {author}")
+
+
+@router.register("pull_request", action="opened")
+async def pull_request_opened_event(event, gh, *args, **kwargs):
+    """
+    当一个新的 Pull Request 被创建时触发
+    """
+    pr_info = event.data["pull_request"]
+    pr_number = pr_info["number"]
+    pr_title = pr_info["title"]
+    author = pr_info["user"]["login"]
+    
+    logger.info(f"New Pull Request #{pr_number} opened by @{author}: '{pr_title}'")
+    
+    # 在这里你可以添加自动化逻辑，例如:
+    # 1. 检查 PR 标题是否符合规范
+    # 2. 自动给 PR 添加标签 (label)
+    # 3. 自动指派审查者 (assign reviewer)
+    # 4. 在 PR 下发表一条欢迎评论
+    
+    # 示例：发表一条欢迎评论
+    comments_url = pr_info["comments_url"]
+    welcome_message = f"Thanks for opening this PR, @{author}! We will review it soon."
+    async with GithubService(oauth_token=gh_token) as gh_service:
+        comment_result= await gh_service.post_general_pr_comment(owner="xxx", repo_name="xxx", pr_number=1, comment_body=welcome_message)
+        logger.info(f"Comment result: {comment_result}")
+
+
+async def process_webhook_event(event: sansio.Event):
+    """
+    此函数在后台运行以处理 Webhook 事件。
+    """
+    logger.info(f"--- 后台事件处理开始: {event.event} ---")
+    
+    # 初始化 GitHubAPI 客户端
+    # 注意：实际生产中通常需要根据 event.data['installation']['id'] 获取对应的 Installation Token
+    # 这里为了演示简化，直接使用环境变量中的 PAT
+
+    async with aiohttp.ClientSession() as session:
+        gh = GitHubAPI(session, "my-bot", oauth_token=gh_token)
+        
+        try:
+            # 将事件分发给对应的处理器
+            await router.dispatch(event, gh)
+            logger.info(f"--- 后台事件处理完成: {event.event} ---")
+        except Exception as e:
+            logger.error(f"处理事件 {event.event} 时出错: {e}")
+
+
+@app.post("/webhook")
+async def webhook(request: Request, background_tasks: BackgroundTasks):
+    """
+    FastAPI 的入口端点，接收、验证并后台处理 Webhook。
+    """
+    # 1. 读取 Headers 和 Body
+    body = await request.body()
+    secret = os.getenv("GITHUB_WEBHOOK_SECRET")
+    
+    try:
+        # 2. 构建 Event 对象 (会自动验证签名)
+        event = sansio.Event.from_http(request.headers, body, secret=secret)
+        logger.info(f"Webhook 事件已接收: {event.event}")
+        
+        # 3. 将事件处理逻辑添加到后台任务
+        background_tasks.add_task(process_webhook_event, event)
+        
+        # 4. 立即返回 202 Accepted 响应
+        return Response(status_code=202)
+
+    except Exception as e:
+        logger.error(f"处理 webhook 请求时出错: {e}")
+        raise HTTPException(status_code=400, detail="无效的 webhook 请求")
 
 
 if __name__ == "__main__":
