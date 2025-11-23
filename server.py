@@ -115,9 +115,10 @@ async def pull_request_opened_event(event, gh, *args, **kwargs):
     # 示例：发表一条欢迎评论
     comments_url = pr_info["comments_url"]
     welcome_message = f"Thanks for opening this PR, @{author}! We will review it soon."
-    async with GithubService(oauth_token=gh_token) as gh_service:
-        comment_result= await gh_service.post_general_pr_comment(owner="xxx", repo_name="xxx", pr_number=1, comment_body=welcome_message)
-        logger.info(f"Comment result: {comment_result}")
+    
+    gh_service = GithubService(gh)
+    comment_result= await gh_service.post_general_pr_comment(owner="xxx", repo_name="xxx", pr_number=1, comment_body=welcome_message)
+    logger.info(f"Comment result: {comment_result}")
 
 
 async def process_webhook_event(event: sansio.Event):

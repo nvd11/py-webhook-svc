@@ -7,41 +7,9 @@ from gidgethub.aiohttp import GitHubAPI
 
 
 class GithubService:
-    def __init__(self, oauth_token: str):
-        self.oauth_token = oauth_token
-        self._session: aiohttp.ClientSession | None = None
-        self.gh: GitHubAPI | None = None
+    def __init__(self, gh: GitHubAPI):
+        self.gh = gh
 
-    async def __aenter__(self):
-        """
-        在进入 'async with' 块时被调用。
-        负责创建 session 和 GitHubAPI 客户端。
-        """
-        self._session = aiohttp.ClientSession()
-        
-        # The second argument to GitHubAPI is 'requester'.
-        # This is used as the User-Agent header for all API requests.
-        # GitHub requires a valid User-Agent, and it's best practice
-        # to use your app's name or your GitHub username.
-        self.gh = GitHubAPI(
-            self._session, 
-            "py-webhook-svc",
-            oauth_token=self.oauth_token
-        )
-        
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """
-        在退出 'async with' 块时被调用。
-        负责安全地关闭 session。
-        """
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-    
-    
-    
     async def get_user_info(self):
         return await self.gh.getitem("/user")
 
@@ -93,5 +61,3 @@ class GithubService:
         }
         await self.gh.post(url, data=payload)
         print(f"Posted line comment to {file_path}:{line_number} in PR #{pr_number}")
-
-
