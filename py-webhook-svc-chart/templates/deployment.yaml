@@ -29,6 +29,16 @@ spec:
           env:
             - name: APP_ENVIRONMENT
               value: "{{ .Values.appEnvironment }}"
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gh-secrets
+                  key: github-token
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gh-secrets
+                  key: github-webhook-secret
           ports:
             - containerPort: {{ .Values.service.port }}
           volumeMounts: []
