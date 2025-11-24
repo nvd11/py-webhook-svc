@@ -104,7 +104,12 @@ async def pull_request_opened_event(event, gh, *args, **kwargs):
     pr_title = pr_info["title"]
     author = pr_info["user"]["login"]
     
-    logger.info(f"New Pull Request #{pr_number} opened by @{author}: '{pr_title}'")
+    # 获取仓库信息
+    repo_info = event.data["repository"]
+    repo_owner = repo_info["owner"]["login"]
+    repo_name = repo_info["name"]
+    
+    logger.info(f"New Pull Request #{pr_number} opened by @{author} in {repo_owner}/{repo_name}: '{pr_title}'")
     
     # 在这里你可以添加自动化逻辑，例如:
     # 1. 检查 PR 标题是否符合规范
@@ -117,7 +122,7 @@ async def pull_request_opened_event(event, gh, *args, **kwargs):
     welcome_message = f"Thanks for opening this PR, @{author}! We will review it soon."
     
     gh_service = GithubService(gh)
-    comment_result= await gh_service.post_general_pr_comment(owner="xxx", repo_name="xxx", pr_number=1, comment_body=welcome_message)
+    comment_result= await gh_service.post_general_pr_comment(owner=repo_owner, repo_name=repo_name, pr_number=pr_number, comment_body=welcome_message)
     logger.info(f"Comment result: {comment_result}")
 
 
@@ -142,6 +147,7 @@ async def process_webhook_event(event: sansio.Event):
             logger.error(f"处理事件 {event.event} 时出错: {e}")
 
 
+@app.post("/")
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
     """
