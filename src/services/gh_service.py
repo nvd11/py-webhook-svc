@@ -4,6 +4,44 @@ from loguru import logger
 
 import aiohttp
 from gidgethub.aiohttp import GitHubAPI
+import time
+import jwt
+
+async def create_installation_access_token(
+    app_id: str,
+    private_key: str,
+    installation_id: str,
+    base_url: str = "https://api.github.com"
+) -> str:
+    """
+    Manually create an installation access token.
+    This is useful for GitHub Enterprise Server where gidgethub helpers might not work.
+    """
+    def generate_jwt(app_id, private_key):
+        payload = {
+            'iat': int(time.time()),
+            'exp': int(time.time()) + (10 * 60),  # 10 minutes expiration
+            'iss': app_id
+        }
+        return jwt.encode(payload, private_key, algorithm='RS256')
+
+    jwt_token = generate_jwt(app_id, private_key)
+    headers = {
+        'Authorization': f'Bearer {jwt_token}',
+        'Accept': 'application/vnd.github+json'
+    }
+    url = f"{base_url}/app/installations/{installation_id}/access_tokens"
+
+    # Use a shared session if available, or create a new one
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers) as response:
+            if response.status == 201:
+                data = await response.json()
+                return data.get('token')
+            else:
+                error_text = await response.text()
+                logger.error(f"Failed to get installation token: {response.status} - {error_text}")
+                return None
 
 
 class GithubService:

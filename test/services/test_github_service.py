@@ -20,7 +20,7 @@ async def test_get_user_info():
         pytest.skip("GITHUB_TOKEN is not set, skipping integration test.")
 
     async with aiohttp.ClientSession() as session:
-        gh = GitHubAPI(session, "py-webhook-svc", oauth_token=token)
+        gh = GitHubAPI(session, "py-webhook-svc", oauth_token=token, base_url="https://api.github.com")
         gh_service = GithubService(gh)
         assert gh_service.gh is not None
         user_info = await gh_service.get_user_info()
@@ -36,7 +36,7 @@ async def test_make_comment_to_pr():
         pytest.skip("GITHUB_TOKEN is not set, skipping integration test.")
 
     async with aiohttp.ClientSession() as session:
-        gh = GitHubAPI(session, "py-webhook-svc", oauth_token=token)
+        gh = GitHubAPI(session, "py-webhook-svc", oauth_token=token, base_url="https://api.github.com")
         gh_service = GithubService(gh)
         assert gh_service.gh is not None
         comment = await gh_service.post_general_pr_comment(owner="nvd11", repo_name="Terraform-GCP-config", pr_number=1, comment_body="This is a test comment")
