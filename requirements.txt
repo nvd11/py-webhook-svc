@@ -33,3 +33,4 @@ typing_extensions==4.15.0
 uritemplate==4.2.0
 uvicorn==0.36.0
 yarl==1.22.0
+pytest-asyncio

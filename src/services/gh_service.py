@@ -6,6 +6,7 @@ import aiohttp
 from gidgethub.aiohttp import GitHubAPI
 import time
 import jwt
+from urllib.parse import urlparse
 
 async def create_installation_access_token(
     app_id: str,
@@ -59,8 +60,31 @@ class GithubService:
     async def get_repo_issues(self, repo_name: str):
         return await self.gh.getiter(f"/repos/{repo_name}/issues")
 
-
-  
+    async def post_comment_by_url(self, pr_url: str, comment_body: str):
+        """
+        Posts a general comment to a pull request by parsing its URL.
+        """
+        try:
+            parsed_url = urlparse(pr_url)
+            path_parts = parsed_url.path.strip('/').split('/')
+            
+            if len(path_parts) >= 4 and path_parts[2] == 'pull':
+                owner, repo_name, _, pr_number_str = path_parts[:4]
+                pr_number = int(pr_number_str)
+                logger.info(f"Parsed PR URL: owner='{owner}', repo='{repo_name}', number={pr_number}")
+                
+                return await self.post_general_pr_comment(
+                    owner=owner,
+                    repo_name=repo_name,
+                    pr_number=pr_number,
+                    comment_body=comment_body
+                )
+            else:
+                logger.error(f"Invalid GitHub PR URL format: {pr_url}")
+                return {"error": "Invalid GitHub PR URL format."}
+        except (ValueError, IndexError) as e:
+            logger.error(f"Could not parse PR URL '{pr_url}': {e}")
+            return {"error": f"Could not parse URL: {e}"}
 
     async def post_general_pr_comment(self, owner: str, repo_name: str, pr_number: int, comment_body: str):
         """

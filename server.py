@@ -2,6 +2,7 @@ import os
 
 import aiohttp
 from gidgethub.aiohttp import GitHubAPI
+from src.services.code_review_service import CodeReviewService
 from src.services.gh_service import GithubService
 import src.configs.config
 
@@ -105,14 +106,19 @@ async def pull_request_opened_event(event, gh, *args, **kwargs):
     repo_info = event.data["repository"]
     repo_owner = repo_info["owner"]["login"]
     repo_name = repo_info["name"]
+    pr_url = pr_info["html_url"]
     
-    logger.info(f"New Pull Request #{pr_number} opened by @{author} in {repo_owner}/{repo_name}: '{pr_title}'")
+    logger.info(f"New Pull Request #{pr_number} opened by @{author} in {repo_owner}/{repo_name}: '{pr_title}' URL: {pr_url}")
     
-    welcome_message = f"Thanks for opening this PR, @{author}! We will review it soon."
+    welcome_message = f"Thanks for opening this PR, @{author}! We will review it soon. You can view it here: {pr_url}"
     
     gh_service = GithubService(gh)
     comment_result= await gh_service.post_general_pr_comment(owner=repo_owner, repo_name=repo_name, pr_number=pr_number, comment_body=welcome_message)
     logger.info(f"Comment result: {comment_result}")
+    logger.info("--- start code review process ---")
+    code_review_service = CodeReviewService(gs=gh_service)
+    review_result = await code_review_service.code_review(pr_url)
+        
 
 
 async def process_webhook_event(event: sansio.Event):
