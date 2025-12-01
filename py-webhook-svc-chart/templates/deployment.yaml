@@ -29,7 +29,22 @@ spec:
           env:
             - name: APP_ENVIRONMENT
               value: "{{ .Values.appEnvironment }}"
+            - name: GITHUB_APP_ID
+              value: "{{ .Values.githubAppId }}"
+            - name: GITHUB_PRIVATE_KEY_PATH
+              value: "/etc/github/private-key.pem"
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gh-secrets
+                  key: github-webhook-secret
           ports:
             - containerPort: {{ .Values.service.port }}
-          volumeMounts: []
-      volumes: []
+          volumeMounts:
+            - name: gh-private-key
+              mountPath: "/etc/github"
+              readOnly: true
+      volumes:
+        - name: gh-private-key
+          secret:
+            secretName: gh-app-private-key

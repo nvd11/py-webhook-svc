@@ -16,6 +16,9 @@ fullnameOverride: ""
 
 appEnvironment: prod
 
+# GitHub App ID
+githubAppId: 2347314
+
 podAnnotations: {}
 podLabels: {}
 

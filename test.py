@@ -1,2 +1,0 @@
-import src.configs.config
-
