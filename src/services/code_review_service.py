@@ -1,10 +1,10 @@
 from src.services.gh_service import GithubService
-import src.configs.config
+from src.configs.config import yaml_configs
 from loguru import logger
 import aiohttp
 import json
 
-review_url="https://gateway.jpgcp.cloud/py-github-agent/review"
+review_url = yaml_configs['py_github_agent']['review_url']
 
 
 

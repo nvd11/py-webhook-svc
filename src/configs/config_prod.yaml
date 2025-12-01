@@ -7,3 +7,6 @@ gcp:
 modeling:
   model1:
     table1: DS1.tb_model1_house_price
+
+py_github_agent:
+  review_url: http://clusterip-py-github-agent:8000/review

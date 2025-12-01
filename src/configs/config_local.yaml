@@ -7,3 +7,6 @@ gcp:
 modeling:
   model1:
     table1: DS1.tb_model1_house_price
+
+py_github_agent:
+  review_url: https://gateway.jpgcp.cloud/py-github-agent/review
