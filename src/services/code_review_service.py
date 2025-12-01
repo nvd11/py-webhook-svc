@@ -2,6 +2,7 @@ from src.services.gh_service import GithubService
 import src.configs.config
 from loguru import logger
 import aiohttp
+import json
 
 review_url="https://gateway.jpgcp.cloud/py-github-agent/review"
 
@@ -52,6 +53,13 @@ class CodeReviewService:
         """
         words = "failed to get review.., please try again later."
         review_rs = await self.get_code_review_rpt(pr_url)
-        words = review_rs['review_report'] if isinstance(review_rs, dict) and 'review_report' in review_rs else review_rs
+        if isinstance(review_rs, dict) and 'review_report' in review_rs:
+            words = review_rs['review_report']
+        elif isinstance(review_rs, dict):
+            logger.error(f"Code review service returned an error: {review_rs}")
+            words = json.dumps(review_rs)
+        else:
+            logger.error(f"Code review service returned an error: {review_rs}")
+            words = str(review_rs)
         rs = await self.gs.post_comment_by_url(pr_url, words)
         return rs

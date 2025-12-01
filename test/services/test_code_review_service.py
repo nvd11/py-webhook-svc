@@ -79,10 +79,10 @@ class TestCodeReviewServiceIntegration:
         """
         # Arrange: Use a real PR for testing. 
         # Make sure the GITHUB_TOKEN has write access to this repo.
-        pr_url = "https://github.com/nvd11/py-webhook-svc/pull/5"
+        pr_url = "https://github.com/nvd11/c_start/pull/4"
         logger.info(f"Starting full workflow test for PR: {pr_url}")
         # Act
-        response = await self.code_review_service.code_review(pr_url, "dummy_token")
+        response = await self.code_review_service.code_review(pr_url)
         
         # Assert
         # A successful comment posting returns a dictionary with details.
